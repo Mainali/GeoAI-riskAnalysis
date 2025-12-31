@@ -1,5 +1,6 @@
 import requests
 from google import genai
+from dotenv import load_dotenv
 import json
 import os
 
@@ -26,6 +27,7 @@ def getOSMData(lat, lon, radius_meters =2000):
         dataList = []
         #extracting the data
         nodes = data['elements']
+        locationName = data['elements'][0]['tags']['addr:city']
         print(len(nodes))
         for node in nodes:
             if node['type'] == 'node':
@@ -45,7 +47,7 @@ def getOSMData(lat, lon, radius_meters =2000):
                     'lon': node['center']['lon']
                 })
         print("Data fetched successfully")
-        return dataList
+        return locationName, dataList
     except Exception as e:
         print(f"Error fetching data from overpass api: {e}")
         return None
@@ -65,17 +67,16 @@ def analyzeRisk(locationName, infraList):
     3. Provide a 2-sentence executive summary for a city planner. 
     Format the response in clean Markdown. 
     """
-    #get api key from env file  
-
-    api_key = os.getenv("GOOGLE_API_KEY")#from env file
+    #get api key from env file
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_API_KEY")
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model="gemini-2.5-flash", contents=prompt
     )
 
-    print(response.text)
     return response.text
 
 
-infraList = getOSMData(40.7128, -74.0060)
-analyzeRisk("New York", infraList)
+# infraList = getOSMData(40.7128, -74.0060)
+# analyzeRisk("New York", infraList)
