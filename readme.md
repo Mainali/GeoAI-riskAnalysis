@@ -2,7 +2,7 @@
 
 GeoAI Engine is a powerful tool that combines real-time geospatial data from OpenStreetMap with advanced AI analysis using Google's Gemini models. It helps city planners and risk analysts identify critical infrastructure, assess resilience, and pinpoint potential points of failure in urban environments.
 
-![Dashboard Screenshot](frontend/public/screenshot.png)
+![Dashboard Screenshot](/frontend/public/screenshot.png)
 
 ## Feature Overview
 
