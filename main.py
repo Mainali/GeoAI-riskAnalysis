@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from engineCore import getOSMData, analyzeRisk  
+from engineCore import getOSMData, analyzeInfrastructureRisk, analyzePointRisk
 
 app = FastAPI()
 
@@ -13,13 +13,30 @@ app.add_middleware(
 )
 
 @app.get("/api/infrastructures")
-def getInfrastructures(lat: float, lon: float, withRiskAnalysis: bool = False):
+async def getInfrastructures(lat: float, lon: float, withRiskAnalysis: bool = False):
     location, infraList = getOSMData(lat, lon)
     riskAnalysis = None
     if withRiskAnalysis:
-        riskAnalysis = analyzeRisk(location, infraList)
-    return {"location": location, "infraList": infraList, "riskAnalysis": riskAnalysis}
+        riskAnalysis = analyzeInfrastructureRisk(location, infraList)
 
+    #convert infraList to geojson
+    geojson = { 
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [item['lon'], item['lat']]},
+                "properties": {"name": item['name'], "type": item['amenity']}
+            } for item in infraList
+        ]
+    }
+
+    return {"location": location, "infraList": geojson, "riskAnalysis": riskAnalysis}
+
+@app.get("/api/analyzePoint")   
+async def analyzePoint(amenity: str, name: str):
+    riskAnalysis = analyzePointRisk(amenity, name)
+    return {"riskAnalysis": riskAnalysis} 
 
 
 # if __name__ == "__main__":

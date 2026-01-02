@@ -8,7 +8,7 @@ def getOSMData(lat, lon, radius_meters =2000):
 
     overpass_url = "https://overpass-api.de/api/interpreter"
     query = f"""
-    [out:json][timeout:25];
+    [out:json][timeout:55];
     ( 
 
       node["amenity"~"hospital|police|fire_station|pharmacy"](around:{radius_meters},{lat},{lon}); 
@@ -53,7 +53,7 @@ def getOSMData(lat, lon, radius_meters =2000):
         return None
 
 
-def analyzeRisk(locationName, infraList):
+def analyzeInfrastructureRisk(locationName, infraList):
     #using google genai api to analyze the risk
     
     dataContext = "\n".join([f"{infra['name']} {infra['amenity']} {infra['lat']} {infra['lon']}" for infra in infraList])
@@ -78,5 +78,16 @@ def analyzeRisk(locationName, infraList):
     return response.text
 
 
+def analyzePointRisk(amenity: str, name: str):
+    prompt =  f"Identify 2 safety risks and 1 optimization for a {amenity} named {name} in an urban setting." 
+    #get api key from env file
+    load_dotenv()
+    api_key = os.getenv("GOOGLE_API_KEY")
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash", contents=prompt
+    )
+
+    return response.text
 # infraList = getOSMData(40.7128, -74.0060)
 # analyzeRisk("New York", infraList)
