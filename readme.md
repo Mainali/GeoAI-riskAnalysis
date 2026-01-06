@@ -67,6 +67,7 @@ GeoAI Engine is a powerful tool that combines real-time geospatial data from Ope
 2. Click on the map to select a location or use the default coordinates.
 3. View the fetched infrastructure markers on the map.
 4. The AI Risk Report will automatically generate and display key insights about the area's resilience.
+5. Click on any specific infrastructure marker to view a dedicated risk analysis for that individual facility.
 
 ## Future ToDos
 
