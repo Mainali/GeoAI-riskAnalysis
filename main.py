@@ -14,22 +14,29 @@ app.add_middleware(
 
 @app.get("/api/infrastructures")
 async def getInfrastructures(lat: float, lon: float, withRiskAnalysis: bool = False):
-    location, infraList = getOSMData(lat, lon)
+    osm_data = getOSMData(lat, lon)
+    if not osm_data:
+        return {"location": "Unknown", "infraList": None, "riskAnalysis": "cannot get data for the location", "error": True}
+    
+    location, infraList = osm_data
     riskAnalysis = None
-    if withRiskAnalysis:
+    if infraList and withRiskAnalysis:
         riskAnalysis = analyzeInfrastructureRisk(location, infraList)
 
     #convert infraList to geojson
-    geojson = { 
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
+    if infraList:
+        geojson = { 
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [item['lon'], item['lat']]},
                 "properties": {"name": item['name'], "type": item['amenity']}
-            } for item in infraList
-        ]
-    }
+                } for item in infraList
+            ]
+        }
+    else:
+        geojson = None
 
     return {"location": location, "infraList": geojson, "riskAnalysis": riskAnalysis}
 

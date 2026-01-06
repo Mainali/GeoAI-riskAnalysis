@@ -20,37 +20,65 @@ def getOSMData(lat, lon, radius_meters =2000):
     out center; 
     """
     print("fetching data from overpass api")
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+        'Accept': 'application/json'
+    }
 
     try:
-        response = requests.get(overpass_url, params={'data': query})
-        data = response.json()
+        response = requests.get(overpass_url, params={'data': query}, headers=headers, timeout=60)
+        
+        # Check for HTTP errors
+        if response.status_code != 200:
+            print(f"Overpass API Error: {response.status_code} - {response.text}")
+            return None, None
+            
+        try:
+            data = response.json()
+        except json.JSONDecodeError as e:
+            print(f"Failed to decode JSON from Overpass API. Response text: {response.text[:500]}")
+            return None, None
+
         dataList = []
+        if not data or 'elements' not in data:
+            print("No elements found in Overpass response")
+            return None, None
+
         #extracting the data
         nodes = data['elements']
-        locationName = data['elements'][0]['tags']['addr:city']
+        if not nodes:
+             print("Empty elements list from Overpass")
+             return None, None
+
+        # Safer way to get location name
+        locationName = "Unknown Location"
+        if nodes and 'tags' in nodes[0] and 'addr:city' in nodes[0]['tags']:
+            locationName = nodes[0]['tags']['addr:city']
+        
         print(len(nodes))
         for node in nodes:
             if node['type'] == 'node':
-                tags = node['tags']
+                tags = node.get('tags', {})
                 dataList.append({
-                    'name': tags.get('name', ''),
-                    'amenity': tags.get('amenity', ''),
+                    'name': tags.get('name', 'Unknown'),
+                    'amenity': tags.get('amenity', 'Unknown'),
                     'lat': node['lat'],
                     'lon': node['lon']
                 })
             elif node['type'] == 'way':
-                tags = node['tags']
-                dataList.append({
-                    'name': tags.get('name', ''),
-                    'amenity': tags.get('amenity', ''),
-                    'lat': node['center']['lat'],
-                    'lon': node['center']['lon']
-                })
+                tags = node.get('tags', {})
+                if 'center' in node:
+                    dataList.append({
+                        'name': tags.get('name', 'Unknown'),
+                        'amenity': tags.get('amenity', 'Unknown'),
+                        'lat': node['center']['lat'],
+                        'lon': node['center']['lon']
+                    })
         print("Data fetched successfully")
         return locationName, dataList
     except Exception as e:
         print(f"Error fetching data from overpass api: {e}")
-        return None
+        return None, None
 
 
 def analyzeInfrastructureRisk(locationName, infraList):

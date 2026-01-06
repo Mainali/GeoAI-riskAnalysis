@@ -8,11 +8,33 @@
           <div v-if="data" class="report-container">
             <h3 style="margin-top: 0;">AI Risk Report</h3>
             <div class="analysis-box">
-              <vue-markdown :source="data.riskAnalysis" />
+              <p v-if="data.error" style="color: #e74c3c; font-weight: bold;">{{ data.riskAnalysis }}</p>
+              <vue-markdown v-else :source="data.riskAnalysis" />
             </div>
-            <button @click="data = null" class="clear-btn">Clear Analysis</button>
           </div>
         </Transition>
+
+        <Transition name="slide-fade">
+          <div v-if="pointAnalysisLoading" class="analysis-box" style="margin-top: 20px; border-left-color: #3498db;">
+            <p style="margin: 0; color: #3498db;">Running detailed analysis on specific point...</p>
+          </div>
+        </Transition>
+
+        <Transition name="slide-fade">
+          <div v-if="pointAnalysis" class="report-container" style="margin-top: 20px;">
+            <h3 style="margin-top: 0;">Point Analysis: {{ pointAnalysis.name }}</h3>
+            <div class="analysis-box" style="border-left-color: #3498db;">
+              <vue-markdown :source="pointAnalysis.analysis" />
+            </div>
+            <button @click="pointAnalysis = null" class="clear-btn" style="background: #95a5a6;">Close Point
+              Analysis</button>
+          </div>
+        </Transition>
+
+        <div v-if="(data || pointAnalysis) && !loading && !pointAnalysisLoading" style="margin-top: 20px;">
+          <button @click="{ data = null; pointAnalysis = null; }" class="clear-btn">Clear All Analysis</button>
+        </div>
+
         <p v-if="!data && !loading" style="color: #7f8c8d;">
           Click anywhere on the map to generate a spatial AI analysis.
         </p>
@@ -20,12 +42,22 @@
     </div>
 
     <div style="flex: 1;">
-      <l-map ref="map" v-model:zoom="zoom" :center="center" @click="handleMapClick">
+      <l-map ref="map" v-model:zoom="zoom" :center="center" :use-global-leaflet="false"
+        style="height: 100%; width: 100%" @click="handleMapClick">
         <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <l-geo-json :geojson="data?.infraList" :options="geojsonOptions" />
         <l-marker v-for="(pt, i) in data?.infraList.features" :key="i"
           :lat-lng="[pt.geometry.coordinates[1], pt.geometry.coordinates[0]]">
-          <l-popup>{{ pt.properties.name }} ({{ pt.properties.type }})</l-popup>
+          <l-popup>
+            <div style="min-width: 200px;">
+              <h3 style="margin: 0 0 5px;">{{ pt.properties.name }}</h3>
+              <p style="margin: 0 0 10px; color: #666;">{{ pt.properties.type }}</p>
+
+              <button @click="analyzeSpecificPoint(pt)"
+                style="background: #42b983; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                Analyze Risks
+              </button>
+            </div>
+          </l-popup>
         </l-marker>
       </l-map>
     </div>
@@ -38,17 +70,21 @@
 import { ref } from 'vue';
 import L from "leaflet";
 import VueMarkdown from 'vue-markdown-render';
-import { LMap, LTileLayer, LGeoJson, LMarker, LPopup } from "@vue-leaflet/vue-leaflet";
+import { LMap, LTileLayer, LMarker, LPopup } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 
-const zoom = ref(13);
-const center = ref([51.505, -0.09]);
+const zoom = ref(4);
+const center = ref([39.8283, -98.5795]);
 const data = ref(null);
 const loading = ref(false);
+const pointAnalysis = ref(null);
+const pointAnalysisLoading = ref(false);
 
 const handleMapClick = async (event) => {
   const { lat, lng } = event.latlng;
   loading.value = true;
+  data.value = null; // Reset previous data
+  pointAnalysis.value = null; // Reset point analysis
   try {
     const res = await fetch(`http://localhost:8000/api/infrastructures?withRiskAnalysis=true&lat=${lat}&lon=${lng}`);
     data.value = await res.json();
@@ -56,6 +92,24 @@ const handleMapClick = async (event) => {
     console.error("Analysis failed", err);
   } finally {
     loading.value = false;
+  }
+};
+
+const analyzeSpecificPoint = async (feature) => {
+  pointAnalysisLoading.value = true;
+  pointAnalysis.value = null;
+  try {
+    const res = await fetch(`http://localhost:8000/api/analyzePoint?amenity=${feature.properties.type}&name=${feature.properties.name}`);
+    const result = await res.json();
+    pointAnalysis.value = {
+      name: feature.properties.name,
+      type: feature.properties.type,
+      analysis: result.riskAnalysis
+    };
+  } catch (err) {
+    console.error("Point analysis failed", err);
+  } finally {
+    pointAnalysisLoading.value = false;
   }
 };
 
